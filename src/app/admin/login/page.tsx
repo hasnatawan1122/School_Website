@@ -191,7 +191,7 @@ export default function AdminLoginPage() {
               color: 'var(--gold-light)'
             }}
           >
-            Default Demo Account: <strong>admin</strong> / <strong>Fisenge2026!Admin</strong>
+            Default Demo Account: <strong>admin</strong> / <strong>Better_Luck_Next_Time !</strong>
           </div>
 
           <button
