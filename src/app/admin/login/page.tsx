@@ -180,19 +180,7 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          {/* Quick Default Credentials Tip */}
-          <div
-            style={{
-              background: 'rgba(197, 147, 23, 0.1)',
-              border: '1px solid rgba(197, 147, 23, 0.25)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.75rem',
-              fontSize: '0.8rem',
-              color: 'var(--gold-light)'
-            }}
-          >
-            Default Demo Account: <strong>admin</strong> / <strong>Better_Luck_Next_Time !</strong>
-          </div>
+   
 
           <button
             type="submit"
