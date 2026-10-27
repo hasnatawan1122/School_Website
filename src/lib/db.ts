@@ -1,0 +1,482 @@
+import fs from 'fs/promises';
+import path from 'path';
+import bcrypt from 'bcryptjs';
+
+const DB_FILE = path.join(process.cwd(), 'src', 'data', 'db.json');
+
+export interface SchoolSettings {
+  schoolName: string;
+  motto: string;
+  phone: string;
+  email: string;
+  address: string;
+  province: string;
+  district: string;
+  officeHours: string;
+  admissionStatus: string;
+  establishedYear: number;
+}
+
+export interface PageContent {
+  hero: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    ctaPrimaryText: string;
+    ctaPrimaryLink: string;
+    ctaSecondaryText: string;
+    ctaSecondaryLink: string;
+    heroImage: string;
+    stats: { label: string; value: string }[];
+  };
+  about: {
+    overview: string;
+    mission: string;
+    vision: string;
+    values: { title: string; description: string }[];
+    principalMessage: string;
+    principalName: string;
+    principalTitle: string;
+    principalImage: string;
+    campusDescription: string;
+  };
+  students: {
+    overview: string;
+    curriculumSummary: string;
+    academicStreams: { title: string; subjects: string[]; description: string }[];
+    rules: { title: string; points: string[] }[];
+    clubs: { name: string; description: string; day: string }[];
+  };
+  parents: {
+    welcome: string;
+    guidelines: { title: string; description: string }[];
+    termDates: { term: string; dates: string; notes: string }[];
+    downloadableDocs: { title: string; size: string; category: string }[];
+    enquiryContacts: { role: string; email: string; note: string }[];
+  };
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  qualification: string;
+  email: string;
+  image: string;
+  order: number;
+  bio: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  category: 'Campus' | 'Academic' | 'Events' | 'Sports';
+  image: string;
+  caption: string;
+  date: string;
+  order: number;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  category: 'Academic' | 'Parents' | 'Sports' | 'General';
+  date: string;
+  summary: string;
+  content: string;
+  priority: 'normal' | 'urgent';
+  published: boolean;
+}
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface DatabaseSchema {
+  settings: SchoolSettings;
+  content: PageContent;
+  staff: StaffMember[];
+  gallery: GalleryItem[];
+  announcements: Announcement[];
+  messages: ContactMessage[];
+  admin: {
+    username: string;
+    passwordHash: string;
+    lastLogin?: string;
+  };
+}
+
+const defaultDatabase: DatabaseSchema = {
+  settings: {
+    schoolName: 'Fisenge Secondary School',
+    motto: 'Excellence in Character, Scholarship & Service',
+    phone: '+260 212 510042 / +260 977 820119',
+    email: 'info@fisengesecondary.edu.zm',
+    address: 'VCC8+9JF, Cheswa Ave, Luanshya, Copperbelt Province, Zambia',
+    province: 'Copperbelt Province',
+    district: 'Luanshya',
+    officeHours: 'Monday – Friday: 07:30 – 16:30 CAT',
+    admissionStatus: 'Admissions Open for Grade 8 and Grade 10',
+    establishedYear: 1984
+  },
+  content: {
+    hero: {
+      badge: 'Proudly Educating Future Leaders Since 1984',
+      title: 'Empowering Minds, Inspiring Character, Shaping Futures',
+      subtitle: 'Fisenge Secondary School delivers holistic secondary education rooted in academic rigor, modern science facilities, cultural enrichment, and discipline on the Copperbelt.',
+      ctaPrimaryText: 'Explore Academics',
+      ctaPrimaryLink: '/students',
+      ctaSecondaryText: 'Contact Administration',
+      ctaSecondaryLink: '/contact',
+      heroImage: '/images/campus_hero.jpg',
+      stats: [
+        { label: 'Enrolled Students', value: '1,250+' },
+        { label: 'Pass Rate (ECZ Exams)', value: '94.8%' },
+        { label: 'Certified Educators', value: '58' },
+        { label: 'Clubs & Sports Teams', value: '16' }
+      ]
+    },
+    about: {
+      overview: 'Fisenge Secondary School is a premier government-aided secondary institution situated along the Copperbelt corridor in Luanshya District, Zambia. We provide comprehensive secondary education from Grade 8 through Grade 12 under the Examinations Council of Zambia (ECZ) syllabus.',
+      mission: 'To provide high-quality, inclusive, and transformative secondary education that empowers every learner with intellectual competence, moral fortitude, technological awareness, and practical skills for nation-building.',
+      vision: 'To be a center of excellence in secondary education on the Copperbelt, recognized for producing disciplined, inventive, and community-minded citizens capable of thriving globally.',
+      values: [
+        { title: 'Academic Rigor', description: 'Cultivating critical thinking, inquiry, and consistent dedication to scholastic excellence.' },
+        { title: 'Integrity & Respect', description: 'Upholding honesty, mutual respect, accountability, and ethical behavior in all spheres of life.' },
+        { title: 'Inclusivity & Community', description: 'Welcoming diverse talents, supporting vulnerable learners, and serving the wider Fisenge community.' },
+        { title: 'Environmental Stewardship', description: 'Instilling responsibility for green campus initiatives, agricultural education, and resource care.' }
+      ],
+      principalMessage: 'Welcome to Fisenge Secondary School. Our commitment is simple yet profound: ensuring every young person who walks through our gates receives not only top-tier academic training in sciences, humanities, and commerce, but also the character mentorship required to lead with honour in Zambia and beyond. We invite families to partner with us in nurturing the next generation of pioneers.',
+      principalName: 'Mr. Emmanuel Mwansa',
+      principalTitle: 'Headteacher / Principal (M.Ed, B.Ed Science)',
+      principalImage: '/images/headteacher.jpg',
+      campusDescription: 'Our peaceful, sprawling campus features dedicated science laboratories, a stocked reference library, computer lab, multipurpose assembly hall, sports fields, and agricultural project units that foster experiential learning.'
+    },
+    students: {
+      overview: 'At Fisenge Secondary School, student life blends strong academic foundations with vibrant extracurricular programs, leadership bodies, and sports.',
+      curriculumSummary: 'We follow the Examinations Council of Zambia (ECZ) national curriculum across Junior Secondary (Grades 8–9) and Senior Secondary (Grades 10–12).',
+      academicStreams: [
+        {
+          title: 'Pure & Applied Sciences Stream',
+          subjects: ['Physics', 'Chemistry', 'Biology', 'Pure Mathematics', 'Agricultural Science', 'Computer Studies'],
+          description: 'Designed for aspiring engineers, doctors, technologists, and agricultural scientists with hands-on lab experiments.'
+        },
+        {
+          title: 'Business & Commercial Studies Stream',
+          subjects: ['Principles of Accounts', 'Commerce', 'Mathematics', 'Economics', 'English Language'],
+          description: 'Equipping future accountants, entrepreneurs, financial analysts, and corporate leaders with foundational acumen.'
+        },
+        {
+          title: 'Arts & Humanities Stream',
+          subjects: ['History', 'Geography', 'Civic Education', 'Literature in English', 'Religious Education', 'Zambian Languages'],
+          description: 'Fostering deep analytical inquiry, legal foundations, diplomacy, social science insight, and eloquent communication.'
+        },
+        {
+          title: 'Practical & Vocational Skills',
+          subjects: ['Home Economics / Food & Nutrition', 'Technical Drawing', 'Woodwork & Joinery', 'Art & Design'],
+          description: 'Hands-on practical training fostering entrepreneurship and technical craftsmanship.'
+        }
+      ],
+      rules: [
+        {
+          title: 'Attendance & Punctuality',
+          points: [
+            'School begins at 07:30 prompt every weekday. Gates close at 07:45 for morning assembly.',
+            'Minimum 90% attendance is mandatory to be registered for terminal and national examinations.',
+            'All absences must be substantiated with a written parent or medical letter.'
+          ]
+        },
+        {
+          title: 'Uniform and Grooming Standards',
+          points: [
+            'Prescribed school uniform (navy blazer, pristine sky blue shirt, charcoal trousers/pleated skirts, and black polished leather shoes) is required every school day.',
+            'Sports attire is permitted exclusively on scheduled physical education and club afternoons.',
+            'Neat hair grooming without artificial embellishments in accordance with Ministry of Education regulations.'
+          ]
+        },
+        {
+          title: 'Conduct & Electronic Devices',
+          points: [
+            'Bullying, substance possession, and vandalism carry zero tolerance and immediate disciplinary review.',
+            'Mobile phones and non-approved electronic devices must be surrendered at the security office during learning hours.',
+            'Respect for teachers, prefects, school property, and fellow learners is an absolute expectation.'
+          ]
+        }
+      ],
+      clubs: [
+        { name: 'JETS (Junior Engineers, Technicians & Scientists)', description: 'Science innovation, robotics projects, and provincial science fair competitions.', day: 'Wednesday 15:00' },
+        { name: 'Debate & Public Speaking Society', description: 'Inter-school competitive debating, parliamentary procedure, and oratory contests.', day: 'Thursday 15:00' },
+        { name: 'Red Cross & Health Society', description: 'First aid training, community health outreach, and emergency preparedness.', day: 'Tuesday 15:00' },
+        { name: 'Scripture Union & Moral Guidance', description: 'Spiritual fellowship, ethical discussions, and mentorship sessions.', day: 'Friday 15:00' },
+        { name: 'Young Farmers Club', description: 'Poultry management, horticulture, and sustainable organic vegetable production.', day: 'Monday 15:00' }
+      ]
+    },
+    parents: {
+      welcome: 'Parents and guardians are essential partners in our educational mission. We maintain transparent communication and close collaboration through our active Parent-Teacher Association (PTA).',
+      guidelines: [
+        { title: 'Parent-Teacher Consultations', description: 'Scheduled at mid-term and end of each term. Parents receive one-on-one progress reviews with subject teachers and class mentors.' },
+        { title: 'School Fees & Payment Policy', description: 'All government-stipulated PTA levies and boarding/project contributions must be deposited directly into the designated school bank account. Cash payments at school gates are strictly prohibited.' },
+        { title: 'Visiting Guidelines', description: 'Parents visiting for enquiries must sign in at the security gate and report directly to the Administration Office. Classrooms may not be disrupted during instruction hours.' },
+        { title: 'Health & Wellbeing Updates', description: 'Please update the school clinic nurse promptly regarding any pre-existing health conditions, allergies, or emergency contact modifications.' }
+      ],
+      termDates: [
+        { term: 'Term 1 (2026)', dates: '12 January 2026 – 10 April 2026', notes: 'Mid-term break: 23 – 27 February 2026. Grade 8 orientation week 1.' },
+        { term: 'Term 2 (2026)', dates: '11 May 2026 – 07 August 2026', notes: 'Provincial JETS and Athletics Championships held in June.' },
+        { term: 'Term 3 (2026)', dates: '07 September 2026 – 04 December 2026', notes: 'ECZ National Mock & Final Examination sitting period.' }
+      ],
+      downloadableDocs: [
+        { title: 'Fisenge Secondary School Student Handbook & Code of Conduct', size: '1.4 MB PDF', category: 'Handbooks' },
+        { title: 'Term 1 Calendar & Examination Timetable Outline', size: '420 KB PDF', category: 'Academic' },
+        { title: 'Grade 8 & Grade 10 Admission Requirements & Packing List', size: '780 KB PDF', category: 'Admissions' },
+        { title: 'Approved School Uniform Specifications Guide', size: '950 KB PDF', category: 'Uniforms' }
+      ],
+      enquiryContacts: [
+        { role: 'Headteacher / General Administration', email: 'administration@fisengesecondary.edu.zm', note: 'Appointments booked 48 hours in advance' },
+        { role: 'Deputy Headteacher (Academics)', email: 'academics@fisengesecondary.edu.zm', note: 'Subject selection, reports, ECZ verification' },
+        { role: 'Senior Guidance & Counselling Officer', email: 'guidance@fisengesecondary.edu.zm', note: 'Student welfare, career counseling, bursaries' },
+        { role: 'Accounts & Bursar Office', email: 'bursar@fisengesecondary.edu.zm', note: 'Fee receipts and bank deposit verification' }
+      ]
+    }
+  },
+  staff: [
+    {
+      id: 'staff-1',
+      name: 'Mr. Emmanuel Mwansa',
+      role: 'Headteacher / Principal',
+      department: 'School Leadership',
+      qualification: 'M.Ed Educational Leadership, B.Ed Science (UNZA)',
+      email: 'e.mwansa@fisengesecondary.edu.zm',
+      image: '/images/headteacher.jpg',
+      order: 1,
+      bio: 'Over 22 years of secondary education administration experience across Copperbelt Province schools, dedicated to academic transformation and discipline.'
+    },
+    {
+      id: 'staff-2',
+      name: 'Mrs. Chileshe Banda',
+      role: 'Deputy Headteacher (Academics)',
+      department: 'Academic Affairs',
+      qualification: 'B.Ed Mathematics & Physics (Copperbelt University)',
+      email: 'c.banda@fisengesecondary.edu.zm',
+      image: '/images/deputy_principal.jpg',
+      order: 2,
+      bio: 'Leading curriculum delivery, teacher development, and national examination preparedness with a proven record in STEM excellence.'
+    },
+    {
+      id: 'staff-3',
+      name: 'Mr. Kelvin Tembo',
+      role: 'Head of Science Department',
+      department: 'Sciences',
+      qualification: 'B.Sc with Education - Chemistry & Biology',
+      email: 'k.tembo@fisengesecondary.edu.zm',
+      image: '/images/science_lab.jpg',
+      order: 3,
+      bio: 'Passionate chemistry educator and provincial JETS competition mentor, fostering laboratory inquiry and scientific research.'
+    },
+    {
+      id: 'staff-4',
+      name: 'Ms. Grace Mulenga',
+      role: 'Head of Mathematics Department',
+      department: 'Mathematics',
+      qualification: 'B.Ed Mathematics & ICT',
+      email: 'g.mulenga@fisengesecondary.edu.zm',
+      image: '/images/classroom.jpg',
+      order: 4,
+      bio: 'Specialist in Senior Secondary Mathematics and remedial problem-solving strategies, ensuring every student masters quantitative concepts.'
+    },
+    {
+      id: 'staff-5',
+      name: 'Mr. Patrick Chanda',
+      role: 'Head of Commercial Studies',
+      department: 'Business & Commerce',
+      qualification: 'B.Ed Commerce, ACCA Part 2',
+      email: 'p.chanda@fisengesecondary.edu.zm',
+      image: '/images/library.jpg',
+      order: 5,
+      bio: 'Inspiring future financial leaders with practical bookkeeping, principles of accounts, and national business case analysis.'
+    },
+    {
+      id: 'staff-6',
+      name: 'Coach Joseph Phiri',
+      role: 'Director of Physical Education & Sports',
+      department: 'Co-Curricular & Sports',
+      qualification: 'Diploma in Sports Science & Physical Education',
+      email: 'j.phiri@fisengesecondary.edu.zm',
+      image: '/images/sports.jpg',
+      order: 6,
+      bio: 'Oversees school football, volleyball, athletics, and fitness conditioning, championing teamwork and sporting excellence.'
+    }
+  ],
+  gallery: [
+    {
+      id: 'gal-1',
+      title: 'Fisenge Secondary School Main Entrance & Grounds',
+      category: 'Campus',
+      image: '/images/campus_hero.jpg',
+      caption: 'The welcoming main campus entryway, administrative block, and landscaped student walking avenues.',
+      date: '2026-02-15',
+      order: 1
+    },
+    {
+      id: 'gal-2',
+      title: 'Senior Chemistry Practical in Modern Laboratory',
+      category: 'Academic',
+      image: '/images/science_lab.jpg',
+      caption: 'Grade 11 students conducting qualitative analysis and titration in the science lab.',
+      date: '2026-02-18',
+      order: 2
+    },
+    {
+      id: 'gal-3',
+      title: 'School Reference Library & Independent Study Hall',
+      category: 'Academic',
+      image: '/images/library.jpg',
+      caption: 'Quiet academic study session with access to curriculum textbooks and research materials.',
+      date: '2026-02-20',
+      order: 3
+    },
+    {
+      id: 'gal-4',
+      title: 'Inter-Schools Soccer Derby on School Sports Field',
+      category: 'Sports',
+      image: '/images/sports.jpg',
+      caption: 'Fisenge Secondary First XI soccer team competing against neighboring district champions.',
+      date: '2026-03-01',
+      order: 4
+    },
+    {
+      id: 'gal-5',
+      title: 'Interactive Mathematics Lecture in Grade 10 Room',
+      category: 'Academic',
+      image: '/images/classroom.jpg',
+      caption: 'Learners engaging in algebra problem solving during morning instruction.',
+      date: '2026-03-05',
+      order: 5
+    },
+    {
+      id: 'gal-6',
+      title: 'School Administration & Academic Center',
+      category: 'Campus',
+      image: '/images/deputy_principal.jpg',
+      caption: 'Interior foyer of the academic administration complex where student services are coordinated.',
+      date: '2026-03-08',
+      order: 6
+    }
+  ],
+  announcements: [
+    {
+      id: 'ann-1',
+      title: 'Term 1 Mid-Term Assessments and Parent Consultations Schedule',
+      category: 'Academic',
+      date: '2026-02-22',
+      summary: 'Mid-term examinations will commence next Monday. All parents are invited to the consultation session on Friday.',
+      content: 'Grade 8 through Grade 12 learners will write continuous assessment tests from Monday to Thursday. Friday has been reserved for full-day Parent-Teacher consultations. Reports and progress tracking will be reviewed.',
+      priority: 'urgent',
+      published: true
+    },
+    {
+      id: 'ann-2',
+      title: 'Grade 8 & 10 Admissions: Second Intake Verification Deadline',
+      category: 'Parents',
+      date: '2026-02-15',
+      summary: 'Families with acceptance letters must finalize registration dossiers at the Bursar office before Friday 4:00 PM.',
+      content: 'Please present original primary school leaving certificates, two passport photos, and medical clearance certificates at the admissions desk in the main hall.',
+      priority: 'normal',
+      published: true
+    },
+    {
+      id: 'ann-3',
+      title: 'Annual Provincial JETS Science Fair Registrations Open',
+      category: 'General',
+      date: '2026-02-10',
+      summary: 'Students interested in entering science, renewable energy, and ICT projects are encouraged to submit project outlines.',
+      content: 'The JETS club mentors will host project development clinics every Wednesday afternoon. Prizes and regional qualification opportunities await winners.',
+      priority: 'normal',
+      published: true
+    },
+    {
+      id: 'ann-4',
+      title: 'Copperbelt Inter-Secondary Athletics Meet',
+      category: 'Sports',
+      date: '2026-02-05',
+      summary: 'Fisenge track and field athletes qualify for four sprint and long-distance finals this coming weekend.',
+      content: 'We congratulate our relay team and 800m runners for qualifying for the regional championships. School spirit supporters are welcome.',
+      priority: 'normal',
+      published: true
+    }
+  ],
+  messages: [
+    {
+      id: 'msg-seed-1',
+      name: 'Mrs. Mary Chisenga',
+      email: 'm.chisenga@example.com',
+      phone: '+260 971 223344',
+      subject: 'Grade 10 Transfer Inquiries for Term 2',
+      message: 'Good day. My family recently relocated to Luanshya and I would like to inquire about the transfer requirements for my son who is in Grade 10 taking Pure Sciences.',
+      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+      read: false
+    },
+    {
+      id: 'msg-seed-2',
+      name: 'Mr. David Lubinda',
+      email: 'd.lubinda@example.com',
+      phone: '+260 966 554433',
+      subject: 'PTA Meeting Agenda Confirmation',
+      message: 'Greetings administration. Could you please confirm the start time for the upcoming PTA executive committee meeting this Saturday? Thank you.',
+      createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+      read: true
+    }
+  ],
+  admin: {
+    username: 'admin',
+    // Pre-hashed bcrypt for 'Fisenge2026!Admin' (cost 10)
+    passwordHash: '$2a$10$wKzW6v8uW1gW0aYtV96l3.sI6pI7uT9GvF6m5Qe3M4VfKzO0yV6gK'
+  }
+};
+
+// Ensure default password hash is valid on init
+const DEFAULT_PASSWORD = 'Fisenge2026!Admin';
+
+export async function getDb(): Promise<DatabaseSchema> {
+  try {
+    const raw = await fs.readFile(DB_FILE, 'utf-8');
+    const data = JSON.parse(raw);
+    return data;
+  } catch {
+    // If db doesn't exist, generate correct hash and save
+    const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+    const initialDb: DatabaseSchema = {
+      ...defaultDatabase,
+      admin: {
+        username: 'admin',
+        passwordHash: hash
+      }
+    };
+    await saveDb(initialDb);
+    return initialDb;
+  }
+}
+
+export async function saveDb(data: DatabaseSchema): Promise<void> {
+  const dir = path.dirname(DB_FILE);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+export async function getPublicData() {
+  const db = await getDb();
+  return {
+    settings: db.settings,
+    content: db.content,
+    staff: db.staff.sort((a, b) => a.order - b.order),
+    gallery: db.gallery.sort((a, b) => a.order - b.order),
+    announcements: db.announcements.filter((a) => a.published)
+  };
+}

@@ -1,0 +1,21 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/login/page": "app/admin/login/page.js",
+  "/api/auth/logout/route": "app/api/auth/logout/route.js",
+  "/api/admin/gallery/route": "app/api/admin/gallery/route.js",
+  "/api/admin/content/route": "app/api/admin/content/route.js",
+  "/api/admin/announcements/route": "app/api/admin/announcements/route.js",
+  "/api/admin/staff/route": "app/api/admin/staff/route.js",
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/api/admin/messages/route": "app/api/admin/messages/route.js",
+  "/api/public/contact/route": "app/api/public/contact/route.js",
+  "/about/page": "app/about/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/page": "app/page.js",
+  "/gallery/page": "app/gallery/page.js",
+  "/parents/page": "app/parents/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/students/page": "app/students/page.js",
+  "/staff/page": "app/staff/page.js"
+}
